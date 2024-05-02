@@ -17,6 +17,7 @@ drivers_to_load = [
     'ps4000a',
     'ps5000a',
     'ps6000',
+    'usbtc08', #追記
 ]
 
 modules = {}
@@ -35,6 +36,7 @@ drivers_with_device_connected = [
     # 'ps4000a',
     # 'ps5000a',
     # 'ps6000',
+    'usbtc08', #追記
 ]
 
 

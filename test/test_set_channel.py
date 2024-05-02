@@ -23,6 +23,7 @@ class SetChannelTest(DriverTest):
         "ps4000": 100,
         "ps4000a": 50,
         "ps5000a": 20,
+        # "usbtc08": 0.1, #70,50,20,100,10,0.7,0.07,30,7.5,0.005,1,2,5,24,30,60,42.4,1.5,0.1
     }
 
     def test_set_channel_success(self):

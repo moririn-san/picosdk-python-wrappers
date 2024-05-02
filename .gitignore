@@ -10,3 +10,5 @@
 # All platforms
 
 **/*.h
+
+# .venv/
