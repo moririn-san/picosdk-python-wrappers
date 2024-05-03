@@ -24,7 +24,7 @@ status["set_mains"] = tc08.usb_tc08_set_mains(chandle,0)
 assert_pico2000_ok(status["set_mains"])
 
 # set up channel
-num_channels = 2
+num_channels = 4
 # therocouples types and int8 equivalent
 # B=66 , E=69 , J=74 , K=75 , N=78 , R=82 , S=83 , T=84 , ' '=32 , X=88 
 typeK = ctypes.c_int8(75)
