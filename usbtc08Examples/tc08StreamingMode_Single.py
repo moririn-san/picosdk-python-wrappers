@@ -1,14 +1,10 @@
-#
-# Copyright (C) 2019 Pico Technology Ltd. See LICENSE file for terms.
-#
-# TC-08 STREAMING MODE EXAMPLE
-
-
 import ctypes
 import numpy as np
 import time
 from picosdk.usbtc08 import usbtc08 as tc08
 from picosdk.functions import assert_pico2000_ok
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
 
 # Create chandle and status ready for use
 chandle = ctypes.c_int16()
@@ -38,6 +34,32 @@ assert_pico2000_ok(status["get_minimum_interval_ms"])
 status["run"] = tc08.usb_tc08_run(chandle, status["get_minimum_interval_ms"])
 assert_pico2000_ok(status["run"])
 
+# list for temperature and time
+temperatures = []
+timestamps = []
+
+# プロット初期設定
+fig, ax = plt.subplots()
+line, = ax.plot([], [], 'r-')  # 初期化した空のプロット
+ax.set_xlim(0, 10000)  # set timestamp range
+ax.set_ylim(20, 100)  # set temperature range
+ax.set_xlabel('Time (sec)')
+ax.set_ylabel('Temperature (°C)')
+
+def init():
+    line.set_data([], [])
+    return line,
+
+def update(frame):
+    global temperatures, timestamps
+    # プロット更新
+    line.set_data(timestamps, temperatures)
+    ax.set_xlim(min(timestamps), max(timestamps))  # グラフのX軸を動的に更新
+    return line,
+
+# start animation
+ani = FuncAnimation(fig, update, init_func=init, blit=True)
+
 # Collect and display data in real-time
 try:
     while True:
@@ -48,6 +70,13 @@ try:
         status["get_temp"] = tc08.usb_tc08_get_temp(chandle, ctypes.byref(temp_buffer), ctypes.byref(times_ms_buffer), 1, ctypes.byref(overflow), 1, 0, 1)
         assert_pico2000_ok(status["get_temp"])
         print(f"Temperature = {temp_buffer[0]} °C, Timestamp = {times_ms_buffer[0]} ms")
+
+        # データをリストに追加
+        time_sec = times_ms_buffer[0] / 1000
+        temperatures.append(temp_buffer[0])
+        timestamps.append(time_sec)
+        plt.pause(0.01)  # グラフを更新
+
 except KeyboardInterrupt:
     # stop unit
     status["stop"] = tc08.usb_tc08_stop(chandle)
