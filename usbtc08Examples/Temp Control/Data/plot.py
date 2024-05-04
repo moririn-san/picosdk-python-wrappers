@@ -2,7 +2,7 @@ import csv
 import matplotlib.pyplot as plt
 
 # CSVファイルのパス
-csv_filename = '/Users/shingo/Documents/Temperature_Controller/picosdk-python-wrappers/usbtc08Examples/PID/Data/P_control/Kp20_2.csv'
+csv_filename = '/Users/shingo/Documents/Temperature_Controller/picosdk-python-wrappers/usbtc08Examples/Temp Control/Data/PD_control'
 
 # データを格納するためのリスト
 times = []
@@ -30,7 +30,7 @@ plt.scatter(times, temperatures, label='Temperature (°C)', color='blue')  # 点
 plt.axhline(50, color='green', linestyle='--', linewidth=1, label='Target Temperature (50°C)')  # 50°Cに線を引く
 plt.xlabel('Time (seconds)')
 plt.ylabel('Temperature (°C)')
-plt.title('Kp = 20, Kd = 0.1')
+plt.title('Kp = 12.5')
 plt.legend()
 plt.grid(True)
 # plt.savefig('/Users/shingo/Documents/Temperature_Controller/picosdk-python-wrappers/usbtc08Examples/PID/Data/P_control/Temp_Kp20_2.png')  # PNGで保存
@@ -42,7 +42,7 @@ plt.scatter(times, voltages, label='Voltage (V)', color='red')  # 点でプロ�
 plt.axhline(70, color='purple', linestyle='--', linewidth=1, label='Target Voltage (70V)')  # 70Vに線を引く
 plt.xlabel('Time (seconds)')
 plt.ylabel('Voltage (V)')
-plt.title('Kp = 20, Kd = 0.1')
+plt.title('Kp = 12.5')
 plt.legend()
 plt.grid(True)
 # plt.savefig('/Users/shingo/Documents/Temperature_Controller/picosdk-python-wrappers/usbtc08Examples/PID/Data/P_control/Volt_Kp20_2.png')  # PNGで保存

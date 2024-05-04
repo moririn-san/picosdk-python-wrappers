@@ -12,8 +12,8 @@ import os
 
 ###### set for CSV ######
 # CSVファイルの保存先ディレクトリ
-csv_dir = '/Users/shingo/Documents/Temperature_Controller/picosdk-python-wrappers/usbtc08Examples/PID/Data/PD_control'
-csv_filename = os.path.join(csv_dir, 'Kp20_Kd0R1.csv')
+csv_dir = '/Users/shingo/Documents/Temperature_Controller/picosdk-python-wrappers/usbtc08Examples/Temp Control/Data/PID_control'
+csv_filename = os.path.join(csv_dir, 'Kp12R5_Ki0R3_Kd1.csv')
 
 # CSVファイルを作成してヘッダーを書き込む
 with open(csv_filename, 'w', newline='') as file:
@@ -104,9 +104,9 @@ ani = FuncAnimation(fig, update, init_func=init, blit=True)
 ###### set for PID ######
 # PID parameters
 set_temp = 50  # Set temperature
-Kp = 21.0         # Propotinal gain
-Ki = 0.0       # Integral gain
-Kd = 0.1      # differential gain
+Kp = 12.5         # Propotinal gain
+Ki = 0.3       # Integral gain
+Kd = 1.0      # differential gain
 
 # PID variables initialization
 integral = 0.0
