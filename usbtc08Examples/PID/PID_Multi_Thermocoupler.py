@@ -12,13 +12,13 @@ import os
 
 ###### set for CSV ######
 # CSVファイルの保存先ディレクトリ
-csv_dir = '/Users/shingo/Documents/Temperature_Controller/picosdk-python-wrappers/usbtc08Examples/PID/Data/P_control'
-csv_filename = os.path.join(csv_dir, 'Kp_40.csv')
+csv_dir = '/Users/shingo/Documents/Temperature_Controller/picosdk-python-wrappers/usbtc08Examples/PID/Data/PD_control'
+csv_filename = os.path.join(csv_dir, 'Kp20_Kd0R1.csv')
 
 # CSVファイルを作成してヘッダーを書き込む
 with open(csv_filename, 'w', newline='') as file:
     writer = csv.writer(file)
-    writer.writerow(['Timestamp', 'Average Temperature'])
+    writer.writerow(['Time', 'Temp', 'Volt'])
 #########################
 
 
@@ -80,7 +80,7 @@ timestamps = []
 fig, ax = plt.subplots()
 line, = ax.plot([], [], linestyle='none', marker='o', color='r')  # 点でデータをプロットする設定
 ax.set_xlim(0, 10000)  # set timestamp range
-ax.set_ylim(44, 52)  # set temperature range
+ax.set_ylim(43, 52)  # set temperature range
 ax.axhline(50, color='blue', linewidth=0.8)  # 50°Cの位置に水平線を引く
 ax.set_xlabel('Time (sec)')
 ax.set_ylabel('Temperature (°C)')
@@ -104,9 +104,9 @@ ani = FuncAnimation(fig, update, init_func=init, blit=True)
 ###### set for PID ######
 # PID parameters
 set_temp = 50  # Set temperature
-Kp = 40.0         # Propotinal gain
+Kp = 21.0         # Propotinal gain
 Ki = 0.0       # Integral gain
-Kd = 0.0     # differential gain
+Kd = 0.1      # differential gain
 
 # PID variables initialization
 integral = 0.0
@@ -163,9 +163,9 @@ try:
 
         ###### set for PID ######
         # Calculate PID
-        voltage = calculate_pid(ave_temp)
+        volt = calculate_pid(ave_temp)
         # Apply the voltage to the instrument
-        my_instrument.write(f'VOLT {voltage}') # PMX70-1A out put status is changed every 50ms
+        my_instrument.write(f'VOLT {volt}') # PMX70-1A out put status is changed every 50ms
         #########################
 
 
@@ -173,7 +173,7 @@ try:
         # CSVファイルにデータを追記
         with open(csv_filename, 'a', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow([time_sec, ave_temp])
+            writer.writerow([time_sec, ave_temp, volt])
         #########################
 
 except KeyboardInterrupt:
