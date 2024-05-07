@@ -6,27 +6,6 @@ from picosdk.functions import assert_pico2000_ok
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import pyvisa
-import csv
-import os
-
-
-# PID parameters
-set_temp = 50.0  # Set temperature
-Kp = 20.0         # Propotinal gain
-Ki = 0.25       # Integral gain
-Kd = 0.0      # differential gain
-
-###### set for CSV ######
-# CSVファイルの保存先ディレクトリ
-csv_dir = '/Users/shingo/Documents/Temperature_Controller/picosdk-python-wrappers/usbtc08Examples/Temp Control/Data_Single_Thormocoupler'
-csv_filename = os.path.join(csv_dir, 'Kp20R_Ki0R25.csv')
-
-# CSVファイルを作成してヘッダーを書き込む
-with open(csv_filename, 'w', newline='') as file:
-    writer = csv.writer(file)
-    writer.writerow(['Time', 'Temp1', 'Volt', 'Temp2','Temp3', 'Room_Temp'])
-#########################
-
 
 ###### set for PMX70-1A ######
 # Initialize the resource manager and open the connection
@@ -59,13 +38,11 @@ status["set_mains"] = tc08.usb_tc08_set_mains(chandle,0)
 assert_pico2000_ok(status["set_mains"])
 
 # set up channel
-num_channels = 4
 # therocouples types and int8 equivalent
 # B=66 , E=69 , J=74 , K=75 , N=78 , R=82 , S=83 , T=84 , ' '=32 , X=88 
 typeK = ctypes.c_int8(75)
-for channel in range(1, num_channels + 1):
-    status[f"set_channel_{channel}"] = tc08.usb_tc08_set_channel(chandle, channel, typeK)
-    assert_pico2000_ok(status[f"set_channel_{channel}"])
+status["set_channel"] = tc08.usb_tc08_set_channel(chandle, 1, typeK)
+assert_pico2000_ok(status["set_channel"])
 
 # get minimum sampling interval in ms
 status["get_minimum_interval_ms"] = tc08.usb_tc08_get_minimum_interval_ms(chandle)
@@ -84,45 +61,39 @@ timestamps = []
 
 # プロット初期設定
 fig, ax = plt.subplots()
-lines = []
-styles = ['-', '--', '-.']
-colors = ['red', 'black', 'black']
-labels = ['Temp1', 'Temp2', 'Temp3']
-num_lines = 3
-for i in range(num_lines):  # Four lines for three temps and one average
-    line, = ax.plot([], [], linestyle=styles[i], color=colors[i], label=labels[i])
-    lines.append(line)
-
-ax.set_xlim(0, 10000)  # Set timestamp range
-ax.set_ylim(42, 52)    # Set temperature range
-ax.axhline(50, color='blue', linewidth=0.8)  # 50°Cの位置に水平線を引く
+line, = ax.plot([], [], 'r-')  # 初期化した空のプロット
+ax.set_xlim(0, 10000)  # set timestamp range
+ax.set_ylim(20, 60)  # set temperature range
 ax.set_xlabel('Time (sec)')
 ax.set_ylabel('Temperature (°C)')
-ax.legend()
 
 def init():
-    for line in lines:
-        line.set_data([], [])
-    return lines
+    line.set_data([], [])
+    return line,
 
 def update(frame):
-    global timestamps, temperatures
-    if timestamps:
-        ax.set_xlim(min(timestamps), max(timestamps))  # Update the X-axis dynamically based on timestamps
-    for i, line in enumerate(lines):
-        line.set_data(timestamps, [temp[i] for temp in temperatures])  # Plot each temperature
-    return lines
+    global temperatures, timestamps
+    # プロット更新
+    line.set_data(timestamps, temperatures)
+    ax.set_xlim(min(timestamps), max(timestamps))  # グラフのX軸を動的に更新
+    return line,
 
-# Start animation
+# start animation
 ani = FuncAnimation(fig, update, init_func=init, blit=True)
 ##########################
 
 
 ###### set for PID ######
+# PID parameters
+set_temp = 50  # Set temperature
+Kp = 12.5         # Propotinal gain
+Ki = 0.05       # Integral gain
+Kd = 0     # differential gain
+
 # PID variables initialization
 integral = 0.0
 previous_error = 0.0
-sample_time = 0.5  # サンプル時間 #1channel: 0.2sec #4channels: 0.5sec
+sample_time = 0.2  # サンプル時間（200ms）
 
 # PID control logic
 def calculate_pid(temp):
@@ -143,41 +114,26 @@ def calculate_pid(temp):
 try:
     while True:
         # TC08 measures the temperature
-        time.sleep(sample_time)  # Wait for the sample
+        time.sleep(0.2)  # Wait for the sample
+        temp_buffer = (ctypes.c_float * 1)()  # 1 channel buffer
+        times_ms_buffer = (ctypes.c_int32 * 1)()
         overflow = ctypes.c_int16()
-        times_ms_buffer = (ctypes.c_int32 * 1)()  # Buffer for one timestamp
+        status["get_temp"] = tc08.usb_tc08_get_temp(chandle, ctypes.byref(temp_buffer), ctypes.byref(times_ms_buffer), 1, ctypes.byref(overflow), 1, 0, 1)
+        assert_pico2000_ok(status["get_temp"])
+        # print(f"Temperature = {temp_buffer[0]} °C, Timestamp = {times_ms_buffer[0]} ms")
 
-        current_temperatures = []
-        for channel in range(1, num_channels + 1):
-            temp_buffer = (ctypes.c_float * 1)()  # Buffer for one channel
-            status["get_temp"] = tc08.usb_tc08_get_temp(
-                chandle,
-                ctypes.byref(temp_buffer),
-                ctypes.byref(times_ms_buffer),
-                1,  # Number of samples to collect
-                ctypes.byref(overflow),
-                channel,  # Current channel number
-                0,  # Units: Celsius
-                1   # Fill missing
-            )
-            assert_pico2000_ok(status["get_temp"])
-            current_temperatures.append(temp_buffer[0])
-
-        temperatures.append(current_temperatures)
-        time_sec = times_ms_buffer[0] / 1000  # ms -> sec
+        # Add datas to list for Matplotlib
+        time_sec = times_ms_buffer[0] / 1000 # ms -> sec, times_ms_buffer is int
+        temperatures.append(temp_buffer[0])
         timestamps.append(time_sec)
         plt.pause(0.01)  # Reload graph
 
-        # Calculate PID using temp1 only
-        volt = calculate_pid(current_temperatures[0])  # temp1 is at index 0
-
+        ###### set for PID ######
+        # Calculate PID
+        voltage = calculate_pid(temp_buffer[0])
         # Apply the voltage to the instrument
-        my_instrument.write(f'VOLT {volt}')
-
-        # CSVファイルにデータを追記
-        with open(csv_filename, 'a', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow([time_sec, current_temperatures[0], volt] + current_temperatures[1:4])
+        my_instrument.write(f'VOLT {voltage}') # PMX70-1A out put status is changed every 50ms
+        #########################
 
 except KeyboardInterrupt:
     ###### close for tc08 ######

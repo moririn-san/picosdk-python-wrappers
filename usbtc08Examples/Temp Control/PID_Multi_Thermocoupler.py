@@ -12,13 +12,13 @@ import os
 
 ###### set for CSV ######
 # CSVファイルの保存先ディレクトリ
-csv_dir = '/Users/shingo/Documents/Temperature_Controller/picosdk-python-wrappers/usbtc08Examples/Temp Control/Data/PID_control'
-csv_filename = os.path.join(csv_dir, 'Kp12R5_Ki0R15_Kd1.csv')
+csv_dir = '/Users/shingo/Documents/Temperature_Controller/picosdk-python-wrappers/usbtc08Examples/Temp Control/Data/PI_control'
+csv_filename = os.path.join(csv_dir, 'Kp12R5_Ki0R01_Kd0.csv')
 
 # CSVファイルを作成してヘッダーを書き込む
 with open(csv_filename, 'w', newline='') as file:
     writer = csv.writer(file)
-    writer.writerow(['Time', 'Temp', 'Volt'])
+    writer.writerow(['Time', 'Ave_Temp', 'Volt', 'Temp1', 'Temp2','Temp3', 'Room_Temp'])
 #########################
 
 
@@ -78,26 +78,39 @@ timestamps = []
 
 # プロット初期設定
 fig, ax = plt.subplots()
-line, = ax.plot([], [], linestyle='none', marker='o', color='r')  # 点でデータをプロットする設定
-ax.set_xlim(0, 10000)  # set timestamp range
-ax.set_ylim(43, 52)  # set temperature range
+lines = []
+styles = ['-', '--', '-.', ':']
+colors = ['black', 'black', 'black', 'red']  # All black for simplicity
+labels = ['Temp1', 'Temp2', 'Temp3', 'Ave_Temp']
+for i in range(4):  # Four lines for three temps and one average
+    line, = ax.plot([], [], linestyle=styles[i], color=colors[i], label=labels[i])
+    lines.append(line)
+
+ax.set_xlim(0, 10000)  # Set timestamp range
+ax.set_ylim(43, 52)    # Set temperature range
 ax.axhline(50, color='blue', linewidth=0.8)  # 50°Cの位置に水平線を引く
 ax.set_xlabel('Time (sec)')
 ax.set_ylabel('Temperature (°C)')
+ax.legend()
 
 def init():
-    line.set_data([], [])
-    return line,
+    for line in lines:
+        line.set_data([], [])
+    return lines
 
 def update(frame):
-    global temperatures, timestamps
-    # プロット更新
-    line.set_data(timestamps, temperatures)
-    ax.set_xlim(min(timestamps), max(timestamps))  # グラフのX軸を動的に更新
-    return line,
+    global timestamps, temperatures
+    for i, line in enumerate(lines):
+        if i < 3:
+            line.set_data(timestamps, [temp[i] for temp in temperatures])  # Plot each temperature
+        else:
+            line.set_data(timestamps, [np.mean(temp[:3]) for temp in temperatures])  # Plot average temperature
+    ax.set_xlim(min(timestamps), max(timestamps))  # Update the X-axis dynamically
+    return lines
 
-# start animation
+# Start animation
 ani = FuncAnimation(fig, update, init_func=init, blit=True)
+
 ##########################
 
 
@@ -105,8 +118,8 @@ ani = FuncAnimation(fig, update, init_func=init, blit=True)
 # PID parameters
 set_temp = 50  # Set temperature
 Kp = 12.5         # Propotinal gain
-Ki = 0.15       # Integral gain
-Kd = 1.0      # differential gain
+Ki = 0.01       # Integral gain
+Kd = 0.0      # differential gain
 
 # PID variables initialization
 integral = 0.0
@@ -134,47 +147,41 @@ try:
         # TC08 measures the temperature
         time.sleep(sample_time)  # Wait for the sample
         overflow = ctypes.c_int16()
+        times_ms_buffer = (ctypes.c_int32 * 1)()  # Buffer for one timestamp
 
-        ave_temp = 0
+        current_temperatures = []
         for channel in range(1, num_channels + 1):
             temp_buffer = (ctypes.c_float * 1)()  # Buffer for one channel
-            times_ms_buffer = (ctypes.c_int32 * 1)()  # Buffer for one timestamp
-            
             status["get_temp"] = tc08.usb_tc08_get_temp(
                 chandle,
-                ctypes.byref(temp_buffer), 
-                ctypes.byref(times_ms_buffer), 
+                ctypes.byref(temp_buffer),
+                ctypes.byref(times_ms_buffer),
                 1,  # Number of samples to collect
-                ctypes.byref(overflow), 
+                ctypes.byref(overflow),
                 channel,  # Current channel number
                 0,  # Units: Celsius
                 1   # Fill missing
             )
             assert_pico2000_ok(status["get_temp"])
-            ave_temp += temp_buffer[0]
-            # print(f"Channel {channel}: T = {temp_buffer[0]} °C, Time = {times_ms_buffer[0]} ms")
+            current_temperatures.append(temp_buffer[0])
 
-        ave_temp /= num_channels
-        # Add datas to list for Matplotlib
-        time_sec = times_ms_buffer[0] / 1000 # ms -> sec, times_ms_buffer is int
-        temperatures.append(ave_temp)
+        temperatures.append(current_temperatures)
+        time_sec = times_ms_buffer[0] / 1000  # ms -> sec
         timestamps.append(time_sec)
         plt.pause(0.01)  # Reload graph
 
-        ###### set for PID ######
         # Calculate PID
+        ave_temp = sum(current_temperatures[:3]) / 3
         volt = calculate_pid(ave_temp)
+
         # Apply the voltage to the instrument
-        my_instrument.write(f'VOLT {volt}') # PMX70-1A out put status is changed every 50ms
-        #########################
+        my_instrument.write(f'VOLT {volt}')
 
-
-        ###### set for CSV ######
         # CSVファイルにデータを追記
         with open(csv_filename, 'a', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow([time_sec, ave_temp, volt])
-        #########################
+            writer.writerow([time_sec, ave_temp, volt] + current_temperatures)
+
 
 except KeyboardInterrupt:
     ###### close for tc08 ######
