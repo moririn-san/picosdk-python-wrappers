@@ -1,5 +1,4 @@
 import ctypes
-import numpy as np
 import time
 from picosdk.usbtc08 import usbtc08 as tc08
 from picosdk.functions import assert_pico2000_ok
@@ -10,21 +9,15 @@ import csv
 import os
 
 
-# PID parameters
-set_temp = 50.0  # Set temperature
-Kp = 12.5         # Propotinal gain
-Ki = 0.05       # Integral gain
-Kd = 0.0      # differential gain
-
 ###### set for CSV ######
 # CSVファイルの保存先ディレクトリ
 csv_dir = '/Users/shingo/Documents/Temperature_Controller/picosdk-python-wrappers/usbtc08Examples/Temp Control/Data_Single_Thormocoupler'
-csv_filename = os.path.join(csv_dir, 'Kp12R5_Ki0R05_Kd0.csv')
+csv_filename = os.path.join(csv_dir, 'Dead_Time3.csv')
 
 # CSVファイルを作成してヘッダーを書き込む
 with open(csv_filename, 'w', newline='') as file:
     writer = csv.writer(file)
-    writer.writerow(['Time', 'Temp1', 'Volt', 'Temp2','Temp3', 'Room_Temp'])
+    writer.writerow(['Time', 'Temp2', 'Temp3', 'Temp4'])
 #########################
 
 
@@ -32,15 +25,11 @@ with open(csv_filename, 'w', newline='') as file:
 # Initialize the resource manager and open the connection
 rm = pyvisa.ResourceManager()
 my_instrument = rm.open_resource('USB0::0x0B3E::0x1029::DP000053::INSTR')
-
-# Turn on the output
-my_instrument.write('OUTP ON')
 time.sleep(1)
 
-# Set the current and voltage
-my_instrument.write('CURR 1')
-my_instrument.write('VOLT 20')
-time.sleep(1)  # Wait
+# # Turn on the output
+# my_instrument.write('OUTP ON')
+# time.sleep(1)
 ##############################
 
 
@@ -87,18 +76,16 @@ fig, ax = plt.subplots()
 lines = []
 styles = ['-', '--', '-.']
 colors = ['red', 'black', 'black']
-labels = ['Temp1', 'Temp2', 'Temp3']
+labels = ['Temp2', 'Temp3', 'Temp4']
 num_lines = 3
 for i in range(num_lines):  # Four lines for three temps and one average
     line, = ax.plot([], [], linestyle=styles[i], color=colors[i], label=labels[i])
     lines.append(line)
 
 ax.set_xlim(0, 10000)  # Set timestamp range
-ax.set_ylim(42, 52)    # Set temperature range
-ax.axhline(50, color='blue', linewidth=0.8)  # 50°Cの位置に水平線を引く
+ax.set_ylim(38, 50)    # Set temperature range
 ax.set_xlabel('Time (sec)')
 ax.set_ylabel('Temperature (°C)')
-ax.legend()
 
 def init():
     for line in lines:
@@ -117,34 +104,15 @@ def update(frame):
 ani = FuncAnimation(fig, update, init_func=init, blit=True)
 ##########################
 
-
-###### set for PID ######
-# PID variables initialization
-integral = 0.0
-previous_error = 0.0
-sample_time = 0.5  # サンプル時間 #1channel: 0.2sec #4channels: 0.5sec
-
-# PID control logic
-def calculate_pid(temp):
-    global integral, previous_error
-    error = set_temp - temp
-    integral += error * sample_time
-    derivative = (error - previous_error) / sample_time
-
-    previous_error = error
-    output = Kp * error + Ki * integral + Kd * derivative
-    output = round(output, 2) # Round output to 2 decimal places
-    output = max(0, min(output, 70)) # PMX70-1A Voltage is from 0 to 73.5V
-    # return output
-    return output, integral
-#########################
-
-
 # Collect and display data in real-time
 try:
+    my_instrument.write('OUTP ON')
+    time.sleep(1)
+    my_instrument.write('CURR 1')
+    my_instrument.write('VOLT 60')
     while True:
         # TC08 measures the temperature
-        time.sleep(sample_time)  # Wait for the sample
+        time.sleep(0.5)  # Wait for the sample
         overflow = ctypes.c_int16()
         times_ms_buffer = (ctypes.c_int32 * 1)()  # Buffer for one timestamp
 
@@ -169,18 +137,10 @@ try:
         timestamps.append(time_sec)
         plt.pause(0.01)  # Reload graph
 
-        # Calculate PID using temp1 only
-        # volt = calculate_pid(current_temperatures[0])  # temp1 is at index 0
-        volt, integral_value = calculate_pid(current_temperatures[0])  # temp1 is at index 0
-
-        # Apply the voltage to the instrument
-        my_instrument.write(f'VOLT {volt}')
-
         # CSVファイルにデータを追記
         with open(csv_filename, 'a', newline='') as file:
             writer = csv.writer(file)
-            # writer.writerow([time_sec, current_temperatures[0], volt] + current_temperatures[1:4])
-            writer.writerow([time_sec, current_temperatures[0], volt] + current_temperatures[1:4] + [integral_value])
+            writer.writerow([time_sec, current_temperatures[0], current_temperatures[1], current_temperatures[2]])
 
 except KeyboardInterrupt:
     ###### close for tc08 ######

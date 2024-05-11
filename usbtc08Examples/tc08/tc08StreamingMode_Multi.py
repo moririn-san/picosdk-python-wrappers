@@ -31,7 +31,7 @@ num_channels = 4
 # therocouples types and int8 equivalent
 # B=66 , E=69 , J=74 , K=75 , N=78 , R=82 , S=83 , T=84 , ' '=32 , X=88 
 typeK = ctypes.c_int8(75)
-for channel in range(1, num_channels + 1):
+for channel in range(2, num_channels + 2):
     status[f"set_channel_{channel}"] = tc08.usb_tc08_set_channel(chandle, channel, typeK)
     assert_pico2000_ok(status[f"set_channel_{channel}"])
 
@@ -60,7 +60,7 @@ try:
 
         temperature_data = [] # Temperature data for all channels
 
-        for channel in range(1, num_channels + 1):
+        for channel in range(2, num_channels + 2):
             temp_buffer = (ctypes.c_float * 1)()  # Buffer for one channel
             times_ms_buffer = (ctypes.c_int32 * 1)()  # Buffer for one timestamp
             
