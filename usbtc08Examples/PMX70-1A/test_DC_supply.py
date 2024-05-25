@@ -11,8 +11,8 @@ my_instrument.write('OUTP ON')
 # Set the current
 my_instrument.write('CURR 1')
 # Set the voltage
-my_instrument.write('VOLT 60')
-time.sleep(240)  # Wait
+my_instrument.write('VOLT 10')
+time.sleep(2)  # Wait
 
 # Set to 0 to stop the flow
 my_instrument.write('CURR 0')

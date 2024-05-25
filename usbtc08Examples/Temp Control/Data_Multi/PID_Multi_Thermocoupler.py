@@ -9,16 +9,21 @@ import pyvisa
 import csv
 import os
 
+# PID parameters
+set_temp = 50  # Set temperature
+Kp = 13.2         # Propotinal gain
+Ki = 0.08    # Integral gain
+Kd = 363.0      # differential gain
 
 ###### set for CSV ######
 # CSVファイルの保存先ディレクトリ
-csv_dir = '/Users/shingo/Documents/Temperature_Controller/picosdk-python-wrappers/usbtc08Examples/Temp Control/Data/PI_control'
-csv_filename = os.path.join(csv_dir, 'Kp12R5_Ki0R01_Kd0.csv')
+csv_dir = '/Users/shingo/Documents/Temperature_Controller/picosdk-python-wrappers/usbtc08Examples/Temp Control/Data_Multi'
+csv_filename = os.path.join(csv_dir, 'Kp13R2_Ki0R08_Kd363.csv')
 
 # CSVファイルを作成してヘッダーを書き込む
 with open(csv_filename, 'w', newline='') as file:
     writer = csv.writer(file)
-    writer.writerow(['Time', 'Ave_Temp', 'Volt', 'Temp1', 'Temp2','Temp3', 'Room_Temp'])
+    writer.writerow(['Time', 'Ave_Temp', 'Volt', 'Integral', 'Channel2', 'Channel3', 'Channel4'])
 #########################
 
 
@@ -57,7 +62,7 @@ num_channels = 4
 # therocouples types and int8 equivalent
 # B=66 , E=69 , J=74 , K=75 , N=78 , R=82 , S=83 , T=84 , ' '=32 , X=88 
 typeK = ctypes.c_int8(75)
-for channel in range(1, num_channels + 1):
+for channel in range(2, num_channels + 2):
     status[f"set_channel_{channel}"] = tc08.usb_tc08_set_channel(chandle, channel, typeK)
     assert_pico2000_ok(status[f"set_channel_{channel}"])
 
@@ -79,20 +84,21 @@ timestamps = []
 # プロット初期設定
 fig, ax = plt.subplots()
 lines = []
-styles = ['-', '--', '-.', ':']
-colors = ['black', 'black', 'black', 'red']  # All black for simplicity
-labels = ['Temp1', 'Temp2', 'Temp3', 'Ave_Temp']
-for i in range(4):  # Four lines for three temps and one average
+styles = ['-', '-', '-', '-', '-.']
+colors = ['blue', 'green', 'orange', 'magenta', 'red']  # Unique colors for each channel and average
+labels = ['Channel 2', 'Channel 3', 'Channel 4', 'Channel 5', 'Ave_Temp']
+for i in range(num_channels+1):  # Five lines for four channels and one average
     line, = ax.plot([], [], linestyle=styles[i], color=colors[i], label=labels[i])
     lines.append(line)
 
 ax.set_xlim(0, 10000)  # Set timestamp range
-ax.set_ylim(43, 52)    # Set temperature range
-ax.axhline(50, color='blue', linewidth=0.8)  # 50°Cの位置に水平線を引く
+ax.set_ylim(41, 52)    # Set temperature range
+ax.axhline(50, color='black', linewidth=0.8)  # 50°Cの位置に水平線を引く
 ax.set_xlabel('Time (sec)')
 ax.set_ylabel('Temperature (°C)')
 ax.legend()
 
+# Initialize the graph for updating
 def init():
     for line in lines:
         line.set_data([], [])
@@ -101,25 +107,23 @@ def init():
 def update(frame):
     global timestamps, temperatures
     for i, line in enumerate(lines):
-        if i < 3:
-            line.set_data(timestamps, [temp[i] for temp in temperatures])  # Plot each temperature
+        if i < num_channels:
+            line.set_data(timestamps, [temp[i] for temp in temperatures])  # Plot each channel temperature
         else:
-            line.set_data(timestamps, [np.mean(temp[:3]) for temp in temperatures])  # Plot average temperature
+            line.set_data(timestamps, [np.mean(temp[:num_channels]) for temp in temperatures])  # Plot average temperature
     ax.set_xlim(min(timestamps), max(timestamps))  # Update the X-axis dynamically
     return lines
 
-# Start animation
 ani = FuncAnimation(fig, update, init_func=init, blit=True)
-
-##########################
+############
 
 
 ###### set for PID ######
 # PID parameters
-set_temp = 50  # Set temperature
-Kp = 12.5         # Propotinal gain
-Ki = 0.01       # Integral gain
-Kd = 0.0      # differential gain
+# set_temp = 50  # Set temperature
+# Kp = 12.5         # Propotinal gain
+# Ki = 0.01       # Integral gain
+# Kd = 0.0      # differential gain
 
 # PID variables initialization
 integral = 0.0
@@ -136,8 +140,8 @@ def calculate_pid(temp):
     previous_error = error
     output = Kp * error + Ki * integral + Kd * derivative
     output = round(output, 2) # Round output to 2 decimal places
-    output = max(0, min(output, 70)) # PMX70-1A Voltage is from 0 to 73.5V
-    return output
+    output = max(0, min(output, 73)) # PMX70-1A Voltage is from 0 to 73.5V
+    return output, integral
 #########################
 
 
@@ -150,7 +154,7 @@ try:
         times_ms_buffer = (ctypes.c_int32 * 1)()  # Buffer for one timestamp
 
         current_temperatures = []
-        for channel in range(1, num_channels + 1):
+        for channel in range(2, num_channels + 2):
             temp_buffer = (ctypes.c_float * 1)()  # Buffer for one channel
             status["get_temp"] = tc08.usb_tc08_get_temp(
                 chandle,
@@ -171,8 +175,8 @@ try:
         plt.pause(0.01)  # Reload graph
 
         # Calculate PID
-        ave_temp = sum(current_temperatures[:3]) / 3
-        volt = calculate_pid(ave_temp)
+        ave_temp = sum(current_temperatures[:num_channels]) / num_channels
+        volt, integarl = calculate_pid(ave_temp)
 
         # Apply the voltage to the instrument
         my_instrument.write(f'VOLT {volt}')
@@ -180,7 +184,8 @@ try:
         # CSVファイルにデータを追記
         with open(csv_filename, 'a', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow([time_sec, ave_temp, volt] + current_temperatures)
+            writer.writerow([time_sec, ave_temp, volt, integral] + current_temperatures)
+            #'Time', 'Ave_Temp', 'Volt', 'Integral', 'Channel2', 'Channel3','Channel4', 'Channel5'
 
 
 except KeyboardInterrupt:

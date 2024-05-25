@@ -9,22 +9,21 @@ import pyvisa
 import csv
 import os
 
-
 # PID parameters
 set_temp = 50.0  # Set temperature
-Kp = 12.5         # Propotinal gain
-Ki = 0.05       # Integral gain
-Kd = 0.0      # differential gain
+Kp = 100.5  #13.2         # Propotinal gain
+Ki = 0.0175  #0.12       # Integral gain
+Kd = 175 #363      # differential gain
 
 ###### set for CSV ######
 # CSVファイルの保存先ディレクトリ
-csv_dir = '/Users/shingo/Documents/Temperature_Controller/picosdk-python-wrappers/usbtc08Examples/Temp Control/Data_Single_Thormocoupler'
-csv_filename = os.path.join(csv_dir, 'Kp12R5_Ki0R05_Kd0.csv')
+csv_dir = '/Users/shingo/Documents/Temperature_Controller/picosdk-python-wrappers/usbtc08Examples/Temp Control/Data_Multi_TimeAve'
+csv_filename = os.path.join(csv_dir, 'Kp10R5_Ki0R0175_Kd175.csv')
 
 # CSVファイルを作成してヘッダーを書き込む
 with open(csv_filename, 'w', newline='') as file:
     writer = csv.writer(file)
-    writer.writerow(['Time', 'Temp1', 'Volt', 'Temp2','Temp3', 'Room_Temp'])
+    writer.writerow(['Time', 'Temp1', 'Volt', 'Temp2','Temp3', 'Room_Temp', 'Integral_Value'])
 #########################
 
 
@@ -120,21 +119,23 @@ ani = FuncAnimation(fig, update, init_func=init, blit=True)
 
 ###### set for PID ######
 # PID variables initialization
-integral = 0.0
+integral = 0
 previous_error = 0.0
 sample_time = 0.5  # サンプル時間 #1channel: 0.2sec #4channels: 0.5sec
 
 # PID control logic
-def calculate_pid(temp):
+def calculate_pid(temp, time):
     global integral, previous_error
     error = set_temp - temp
     integral += error * sample_time
     derivative = (error - previous_error) / sample_time
 
+    # if time >= 1000 and 450 <= (integral - error * sample_time) <= 500:
+    #     integral = max(450, min(integral, 500))
     previous_error = error
     output = Kp * error + Ki * integral + Kd * derivative
     output = round(output, 2) # Round output to 2 decimal places
-    output = max(0, min(output, 70)) # PMX70-1A Voltage is from 0 to 73.5V
+    output = max(0, min(output, 73)) # PMX70-1A Voltage is from 0 to 73.5V
     # return output
     return output, integral
 #########################
@@ -171,7 +172,7 @@ try:
 
         # Calculate PID using temp1 only
         # volt = calculate_pid(current_temperatures[0])  # temp1 is at index 0
-        volt, integral_value = calculate_pid(current_temperatures[0])  # temp1 is at index 0
+        volt, integral_value = calculate_pid(current_temperatures[0], time_sec)  # temp1 is at index 0
 
         # Apply the voltage to the instrument
         my_instrument.write(f'VOLT {volt}')

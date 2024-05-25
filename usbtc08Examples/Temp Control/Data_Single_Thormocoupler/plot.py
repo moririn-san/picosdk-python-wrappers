@@ -3,7 +3,9 @@ import csv
 import matplotlib.pyplot as plt
 
 # CSVファイル名
-csv_filename = '/Users/shingo/Documents/Temperature_Controller/picosdk-python-wrappers/usbtc08Examples/Temp Control/Data_Single_Thormocoupler/Kp12R5_Ki0R05_Kd0.csv'
+csv_filename = '/Users/shingo/Documents/Temperature_Controller/picosdk-python-wrappers/usbtc08Examples/Temp Control/Data_Single_Thormocoupler/Kp10R5_Ki0R0175_Kd50.csv'
+
+
 
 def read_data_from_csv(csv_filename):
     times = []

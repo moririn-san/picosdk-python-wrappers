@@ -85,6 +85,7 @@ try:
         with open(csv_filename, 'a', newline='') as file:
             writer = csv.writer(file)
             writer.writerow([times_ms_buffer[0]] + temperature_data)
+            
 except KeyboardInterrupt:
     # stop unit
     status["stop"] = tc08.usb_tc08_stop(chandle)
